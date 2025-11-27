@@ -107,6 +107,11 @@ class FundingRateArbitrage:
         df.index.name = "Symbol"
         df.reset_index(inplace=True)
 
+        dex_cols = self._dex_columns(df)
+        if dex_cols:
+            non_na_count = df[dex_cols].notna().sum(axis=1)
+            df = df.loc[non_na_count >= 2].reset_index(drop=True)
+
         return df
 
     @staticmethod
