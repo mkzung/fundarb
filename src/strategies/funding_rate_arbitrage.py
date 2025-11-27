@@ -12,6 +12,39 @@ class FundingRateArbitrage:
         # { "orderly": {"BTC": 0.01, ...}, "hyperliquid": {...}, ... }
         self.dex_rates: dict[str, dict[str, float]] = {}
 
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        """Normalize symbol names across DEXes.
+
+        Removes common quote currency suffixes and PERP suffixes so that,
+        for example, `BTC_USDC`, `PERP_BTC_USDC` and `BTC-PERP` all map to
+        the same key `BTC`. Hyperliquid already returns bare symbols, so
+        calling this on them is a no-op.
+        """
+
+        if not symbol:
+            return symbol
+
+        s = symbol.upper()
+
+        # Remove known prefixes
+        if s.startswith("PERP_"):
+            s = s[len("PERP_") :]
+
+        # Strip common quote currencies
+        for suffix in ("_USDC", "_USDT", "-USDC", "-USDT"):
+            if s.endswith(suffix):
+                s = s[: -len(suffix)]
+                break
+
+        # Remove perpetual markers
+        for suffix in ("-PERP", "_PERP"):
+            if s.endswith(suffix):
+                s = s[: -len(suffix)]
+                break
+
+        return s
+
     def add_dex_rates(self, dex_name: str, rates: dict | None) -> None:
         """
         Добавить ставки funding для одной биржи.
@@ -21,7 +54,19 @@ class FundingRateArbitrage:
         """
         if not rates:
             return
-        self.dex_rates[dex_name] = rates
+
+        normalized = {}
+        for symbol, rate in rates.items():
+            norm_symbol = self._normalize_symbol(symbol)
+            # Skip empty keys after normalization
+            if not norm_symbol:
+                continue
+            normalized[norm_symbol] = rate
+
+        if not normalized:
+            return
+
+        self.dex_rates[dex_name] = normalized
 
     def compile_rates(self) -> pd.DataFrame:
         """
