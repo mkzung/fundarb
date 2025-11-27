@@ -13,7 +13,7 @@ from prompt_toolkit import HTML, print_formatted_text
 
 # Global network mode: 0=testnet, 1=mainnet
 RUN_MAINNET = int(os.getenv("RUN_MAINNET", "0"))
-IS_MAINNET = RUN_MAINNET == 0
+IS_MAINNET = RUN_MAINNET == 1
 
 # Пути к внутренним модулям
 sys.path.append("src")
@@ -252,10 +252,12 @@ def print_available_USDC_per_DEX(label: str, amount: float):
 
 if __name__ == "__main__":
 
-    print(
-        "Warning: this script is currently configured to use ONLY testnet environments."
-    )
-    print("Ensure you are using testnet accounts and funds.")
+    network_label = "mainnet" if IS_MAINNET else "testnet"
+    print(f"Running in {network_label} mode.")
+    if IS_MAINNET:
+        print("Ensure you are using production accounts and funds.")
+    else:
+        print("Ensure you are using testnet accounts and funds.")
     input("Press Enter to continue...")
 
     address = os.getenv("WALLET_ADDRESS")
