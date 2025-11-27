@@ -1,0 +1,9 @@
+hyperliquid-python-sdk==0.21.0
+
+cryptography==41.0.7
+base58==2.1.1
+python-dotenv==1.0.1
+pandas==2.1.4
+numpy==1.26.4
+prompt_toolkit==3.0.31
+requests==2.31.0
