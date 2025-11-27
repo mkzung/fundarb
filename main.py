@@ -14,6 +14,8 @@ from prompt_toolkit import HTML, print_formatted_text
 # Global network mode: 0=testnet, 1=mainnet
 RUN_MAINNET = int(os.getenv("RUN_MAINNET", "0"))
 IS_MAINNET = RUN_MAINNET == 0
+# Explicit environment label for Orderly public REST calls
+ORDERLY_ENV = "mainnet" if IS_MAINNET else "testnet"
 
 # Пути к внутренним модулям
 sys.path.append("src")
@@ -76,7 +78,10 @@ def analyze_funding_rate_arbitrage(option: int):
 
     # Каждый запуск тянем свежие ставки с DEX
     dex_rates_list = [
-        ("orderly", OrderlyFundingRates().get_orderly_funding_rates()),
+        (
+            "orderly",
+            OrderlyFundingRates(env=ORDERLY_ENV).get_orderly_funding_rates(),
+        ),
         (
             "hyperliquid",
             HyperliquidFundingRates(
