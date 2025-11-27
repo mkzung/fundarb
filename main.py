@@ -72,8 +72,7 @@ def analyze_funding_rate_arbitrage(option: int):
 
     option:
       1 -> показать все ставки
-      2 -> топ-3 разницы относительно Orderly
-      3 -> топ-3 разницы относительно всех DEX
+      2 -> топ-3 разницы относительно всех DEX
     """
 
     # Каждый запуск тянем свежие ставки с DEX
@@ -111,8 +110,6 @@ def analyze_funding_rate_arbitrage(option: int):
     if option == 1:
         fr_arbitrage.display_rates_table(df)
     elif option == 2:
-        fr_arbitrage.display_top_rates_differences_from_Orderly(df)
-    else:
         fr_arbitrage.display_top_rates_differences_from_all_DEXs(df)
 
 
@@ -261,7 +258,6 @@ if __name__ == "__main__":
         "Warning: this script is currently configured to use ONLY testnet environments."
     )
     print("Ensure you are using testnet accounts and funds.")
-    input("Press Enter to continue...")
 
     address = os.getenv("WALLET_ADDRESS")
     print("Running with account address:", address)
@@ -437,7 +433,6 @@ if __name__ == "__main__":
             while True:
                 fr_options = [
                     "View rates on all available DEXs",
-                    "View top 3 rate differences from Orderly",
                     "View top 3 rate differences from all DEXs",
                     "Execute Strategy",
                     "Back to Main Menu",
@@ -449,18 +444,13 @@ if __name__ == "__main__":
                     clear_screen()
                     analyze_funding_rate_arbitrage(1)
 
-                # Top-3 vs Orderly
+                # Top-3 among all DEXs
                 elif sub_choice == 2:
                     clear_screen()
                     analyze_funding_rate_arbitrage(2)
 
-                # Top-3 among all DEXs
-                elif sub_choice == 3:
-                    clear_screen()
-                    analyze_funding_rate_arbitrage(3)
-
                 # Execute Strategy
-                elif sub_choice == 4:
+                elif sub_choice == 3:
                     clear_screen()
                     print(
                         "\nWhen entering a symbol, just enter the symbol itself i.e. ETH\n"
@@ -539,7 +529,7 @@ if __name__ == "__main__":
                             )
                         )
 
-                elif sub_choice == 5:
+                elif sub_choice == 4:
                     break
                 else:
                     print("\nInvalid choice, please try again!")
