@@ -128,9 +128,10 @@ class FundingRateArbitrage:
             print("No funding rate data available.")
             return
 
+        display_df = self._format_display_df(df)
         print(
             tabulate(
-                df,
+                display_df,
                 headers="keys",
                 tablefmt="psql",
                 showindex=False,
@@ -178,9 +179,10 @@ class FundingRateArbitrage:
             )
             return
 
+        display_df = self._format_display_df(top)
         print(
             tabulate(
-                top,
+                display_df,
                 headers="keys",
                 tablefmt="psql",
                 showindex=False,
@@ -218,11 +220,30 @@ class FundingRateArbitrage:
             )
             return
 
+        display_df = self._format_display_df(top)
         print(
             tabulate(
-                top,
+                display_df,
                 headers="keys",
                 tablefmt="psql",
                 showindex=False,
             )
         )
+
+    @staticmethod
+    def _format_display_df(df: pd.DataFrame) -> pd.DataFrame:
+        """Format funding-rate output for readable CLI display.
+
+        * Replace missing values with a dash instead of NaN/placeholder numbers.
+        * Format numeric values to 6 decimal places for consistent columns.
+        """
+
+        display_df = df.copy()
+        for col in display_df.columns:
+            if col == "Symbol":
+                continue
+            display_df[col] = display_df[col].apply(
+                lambda v: "-" if pd.isna(v) else f"{float(v):.6f}"
+            )
+
+        return display_df
