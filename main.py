@@ -17,7 +17,7 @@ IS_MAINNET = RUN_MAINNET == 0
 # Explicit environment label for Orderly public REST calls
 ORDERLY_ENV = "mainnet" if IS_MAINNET else "testnet"
 
-# Пути к внутренним модулям
+# Internal module paths
 sys.path.append("src")
 sys.path.append("src/orderly")
 sys.path.append("src/hyperliq")

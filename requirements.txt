@@ -1,6 +1,6 @@
 hyperliquid-python-sdk==0.21.0
 
-cryptography==41.0.7
+cryptography==43.0.3
 base58==2.1.1
 python-dotenv==1.0.1
 pandas==2.1.4

@@ -3,9 +3,10 @@ from tabulate import tabulate
 
 
 class FundingRateArbitrage:
-    """
-    Класс для анализа арбитража по funding rate между несколькими DEX.
-    Ожидает, что для каждого DEX мы передаём словарь {symbol -> funding_rate}.
+    """Cross-venue funding-rate arbitrage analyzer.
+
+    Accepts a `{symbol -> funding_rate}` mapping for each DEX and computes
+    pairwise rate deltas plus arbitrage opportunities after costs.
     """
 
     def __init__(self) -> None:
