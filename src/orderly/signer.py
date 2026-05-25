@@ -30,7 +30,11 @@ class Signer(object):
 
         json_str = ""
         if req.json is not None:
-            json_str = json.dumps(req.json)
+            # Canonical compact form — must match the bytes sent in the body,
+            # otherwise the server-side signature check fails. Defaults of
+            # ``json.dumps`` insert spaces after separators and break parity
+            # with what the requests library serialises in ``prepare()``.
+            json_str = json.dumps(req.json, separators=(",", ":"))
 
         url = urllib.parse.urlparse(req.url)
         message = str(timestamp) + req.method + url.path + json_str
@@ -56,4 +60,12 @@ class Signer(object):
         elif req.method == "POST" or req.method == "PUT":
             req.headers["Content-Type"] = "application/json"
 
-        return req.prepare()
+        prepared = req.prepare()
+        # The default requests serialiser uses ``", "`` / ``": "`` separators,
+        # which would NOT match the canonical body we signed above. Overwrite
+        # the prepared body with the canonical bytes so the server sees the
+        # exact string we signed.
+        if req.json is not None:
+            prepared.body = json_str.encode("utf-8")
+            prepared.headers["Content-Length"] = str(len(prepared.body))
+        return prepared

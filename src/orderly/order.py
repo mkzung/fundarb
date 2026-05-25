@@ -2,7 +2,7 @@ try:
     # Python 3.11+
     from enum import StrEnum
 except ImportError:
-    # Backport для Python < 3.11
+    # Backport for Python < 3.11
     from enum import Enum
 
     class StrEnum(str, Enum):
@@ -41,7 +41,7 @@ class Order(object):
         self._account = account
 
     def _send_request(self, request: Request):
-        """Helper function: подписать запрос и отправить его."""
+        """Helper: sign the request and dispatch it through the session."""
         req = self._signer.sign_request(request)
         res = self._session.send(req)
         response = json.loads(res.text)
@@ -50,7 +50,7 @@ class Order(object):
     # ---------- BASIC ORDER METHODS ----------
 
     def get_orders(self):
-        """Получить список ордеров."""
+        """Return the list of orders."""
         request = Request("GET", f"{self._config.base_url}/v1/orders")
         return self._send_request(request)
 
@@ -60,12 +60,11 @@ class Order(object):
         order_quantity: float,
         side: Side,
     ):
-        """
-        Создать маркет-ордер на Orderly.
+        """Create a market order on Orderly.
 
-        :param symbol: тикер (например, 'ETH')
-        :param order_quantity: количество (в контрактных единицах)
-        :param side: Side.BUY или Side.SELL
+        :param symbol: ticker (e.g. ``'ETH'``)
+        :param order_quantity: order size in contract units
+        :param side: ``Side.BUY`` or ``Side.SELL``
         """
         symbol = get_orderly_naming_convention(symbol)
 
@@ -88,18 +87,15 @@ class Order(object):
         order_quantity: float,
         side: Side,
     ):
-        """
-        Заглушка под лимитный ордер (пока не реализован).
-        """
+        """Limit-order stub — not implemented yet."""
         raise NotImplementedError("Limit orders are not implemented yet.")
 
     # ---------- POSITION / MANAGEMENT METHODS ----------
 
     def market_close_an_asset(self, symbol: str):
-        """
-        Маркет-закрытие позиции по указанному символу.
+        """Market-close an open position by symbol.
 
-        :param symbol: тикер (например, 'ETH')
+        :param symbol: ticker (e.g. ``'ETH'``)
         """
         position_data = self.get_position(symbol)
         order_quantity = float(position_data["data"]["position_qty"])
@@ -112,44 +108,39 @@ class Order(object):
             print("No position held in this symbol")
 
     def cancel_all_orders(self):
-        """
-        Отменить все открытые ордера.
-        Важно: endpoint /v1/orders (orders во множественном числе).
+        """Cancel every open order.
+
+        Note: the endpoint is ``/v1/orders`` (plural).
         """
         request = Request(
             "DELETE",
             f"{self._config.base_url}/v1/orders",
-            # Be careful, orders has to be plural here
         )
         return self._send_request(request)
 
     def get_position(self, symbol: str):
-        """
-        Получить позицию по конкретному символу.
-        """
+        """Return the position object for a single symbol."""
         symbol = get_orderly_naming_convention(symbol)
         request = Request(
             "GET",
-            f"https://testnet-api-evm.orderly.network/v1/position/{symbol}",
+            f"{self._config.base_url}/v1/position/{symbol}",
         )
         return self._send_request(request)
 
     def get_all_positions(self) -> list:
-        """
-        Получить все открытые позиции на Orderly.
+        """Return every open position on Orderly.
 
-        :return: список словарей вида
-                 [{"symbol": "ETH", "position_size": 0.5}, ...]
+        :return: list of ``{"symbol": "ETH", "position_size": 0.5}`` dicts.
         """
         request = Request(
             "GET",
-            "https://testnet-api-evm.orderly.network/v1/positions",
+            f"{self._config.base_url}/v1/positions",
         )
         positions_data = self._send_request(request)
         filtered_positions = []
 
         for position in positions_data["data"]["rows"]:
-            # Конвертим формат Orderly (PERP_XXX_USDC) в обычный тикер
+            # Convert Orderly's ``PERP_XXX_USDC`` form back to a plain ticker.
             symbol = position["symbol"].replace("PERP_", "").replace("_USDC", "")
             position_size = position["position_qty"]
 

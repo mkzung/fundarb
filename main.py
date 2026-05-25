@@ -11,11 +11,15 @@ from eth_account import Account
 from prompt_toolkit import HTML, print_formatted_text
 
 
-# Global network mode: 0=testnet, 1=mainnet
+# Global network mode: 0=testnet (default), 1=mainnet
 RUN_MAINNET = int(os.getenv("RUN_MAINNET", "0"))
-IS_MAINNET = RUN_MAINNET == 0
+IS_MAINNET = RUN_MAINNET == 1
 # Explicit environment label for Orderly public REST calls
 ORDERLY_ENV = "mainnet" if IS_MAINNET else "testnet"
+# Base host for Orderly EVM public/private REST calls
+ORDERLY_BASE_URL = (
+    "https://api-evm.orderly.org" if IS_MAINNET else "https://testnet-api-evm.orderly.org"
+)
 
 # Internal module paths
 sys.path.append("src")
@@ -41,7 +45,7 @@ load_dotenv()
 
 
 def prompt_user(options, prompt: str) -> int:
-    """Простое текстовое меню, возвращает выбранный номер (1..n)."""
+    """Simple text menu — returns the chosen option number (1..n)."""
     if prompt:
         print(prompt)
     for i, option in enumerate(options, 1):
@@ -54,7 +58,7 @@ def prompt_user(options, prompt: str) -> int:
 
 
 def clear_screen():
-    """Очистка экрана для CLI."""
+    """Clear the terminal screen for the CLI."""
     os.system("cls" if os.name == "nt" else "clear")
 
 
@@ -67,15 +71,14 @@ def get_dex_from_dex_options(choice: int):
 
 
 def analyze_funding_rate_arbitrage(option: int):
-    """
-    Анализ арбитража по funding rate.
+    """Funding-rate arbitrage analyzer.
 
     option:
-      1 -> показать все ставки
-      2 -> топ-3 разницы относительно всех DEX
+      1 -> show all rates
+      2 -> top-3 deltas across all DEXes
     """
 
-    # Каждый запуск тянем свежие ставки с DEX
+    # Pull fresh funding rates from every DEX on each call
     dex_rates_list = [
         (
             "orderly",
@@ -96,14 +99,14 @@ def analyze_funding_rate_arbitrage(option: int):
         # *** ADD NEW DEX HERE ***:
     ]
 
-    # Инициализируем стратегию
+    # Initialise the strategy
     fr_arbitrage = FundingRateArbitrage()
 
-    # Добавляем данные по каждой бирже
+    # Push each venue's rates into the analyzer
     for dex_name, rates in dex_rates_list:
         fr_arbitrage.add_dex_rates(dex_name, rates)
 
-    # Собираем таблицу
+    # Build the unified table
     compiled_rates = fr_arbitrage.compile_rates()
     df = fr_arbitrage.create_rates_table(compiled_rates)
 
@@ -114,7 +117,7 @@ def analyze_funding_rate_arbitrage(option: int):
 
 
 def market_close_an_asset(dex: str, symbol: str):
-    """Маркет-закрытие позиции по символу на выбранном DEX."""
+    """Market-close a position by symbol on the chosen DEX."""
     if dex == "orderly":
         response = client.order.market_close_an_asset(symbol)
         success = response.get("success") is True
@@ -133,14 +136,14 @@ def market_close_an_asset(dex: str, symbol: str):
 
 
 def create_order(dex: str, symbol: str, quantity: float, side: Side):
-    """Создать маркет-ордер на любом поддерживаемом DEX."""
+    """Create a market order on any supported DEX."""
     if dex == "orderly":
         order_result = client.order.create_market_order(symbol, quantity, side)
         success = order_result.get("success") is True
 
-        # Берём mark price из публичного API
+        # Fetch mark price from the public API (respects network mode)
         url = (
-            f"https://testnet-api-evm.orderly.network/v1/public/futures/"
+            f"{ORDERLY_BASE_URL}/v1/public/futures/"
             f"PERP_{symbol}_USDC"
         )
         response = json.loads(requests.request("GET", url).text)
@@ -182,20 +185,37 @@ def create_order(dex: str, symbol: str, quantity: float, side: Side):
     return False
 
 
+# Hard ceiling on a single delta-neutral leg, in USD-equivalent units.
+# Adjust deliberately; safety net against fat-finger / runaway orders.
+MAX_ORDER_SIZE_USD = float(os.getenv("MAX_ORDER_SIZE_USD", "1000"))
+
+
 def execute_funding_rate_arbitrage(
     symbol: str, short_on_dex: str, long_on_dex: str, order_quantity: float
 ) -> bool:
-    """
-    Short на бирже с более высоким funding,
-    Long на бирже с более низким funding.
+    """Open a delta-neutral pair: short the high-funding venue, long the low-funding venue.
+
+    Enforces a global ``MAX_ORDER_SIZE_USD`` cap so a stray prompt cannot ship a
+    nine-figure order. If the cap is exceeded the strategy refuses to run.
     """
 
-    # Сначала шорт
+    # Defensive size cap — refuse rather than silently clamp so caller sees the issue.
+    if order_quantity <= 0:
+        print(f"Refusing to execute: order_quantity must be positive (got {order_quantity}).")
+        return False
+    if order_quantity > MAX_ORDER_SIZE_USD:
+        print(
+            f"Refusing to execute: order_quantity {order_quantity} exceeds "
+            f"MAX_ORDER_SIZE_USD={MAX_ORDER_SIZE_USD}. Raise the env var deliberately if intended."
+        )
+        return False
+
+    # Short leg first — if it fails we never enter the long leg.
     if not create_order(short_on_dex, symbol, order_quantity, Side.SELL):
         print(f"{short_on_dex.title()} order failed, aborting strategy")
         return False
 
-    # Потом лонг
+    # Long leg
     if not create_order(long_on_dex, symbol, order_quantity, Side.BUY):
         print(f"{long_on_dex.title()} order failed, aborting strategy")
         print("Close the short position manually or via menu!")
@@ -205,7 +225,7 @@ def execute_funding_rate_arbitrage(
 
 
 def print_open_positions(dex: str):
-    """Вывести открытые позиции по выбранному DEX."""
+    """Print open positions for the chosen DEX."""
     if dex == "orderly":
         print("Orderly Positions:")
         positions = client.order.get_all_positions()
@@ -229,7 +249,7 @@ def print_open_positions(dex: str):
 
 
 def cancel_open_orders(dex: str):
-    """Отменить все открытые ордера на выбранном DEX."""
+    """Cancel all open orders on the chosen DEX."""
     if dex == "orderly":
         client.order.cancel_all_orders()
     elif dex == "hyperliquid":
@@ -238,7 +258,7 @@ def cancel_open_orders(dex: str):
 
 
 def print_available_USDC_per_DEX(label: str, amount: float):
-    """Красивый вывод баланса USDC."""
+    """Pretty-print a USDC balance line."""
     if amount >= 1_000_000:
         formatted_amount = f"{amount:,.0f}"
     elif amount >= 100_000:
@@ -255,16 +275,20 @@ def print_available_USDC_per_DEX(label: str, amount: float):
 if __name__ == "__main__":
 
     print(
-        "Warning: this script is currently configured to use ONLY testnet environments."
+        f"Network mode: {'MAINNET' if IS_MAINNET else 'TESTNET'} "
+        f"(set RUN_MAINNET=1 in .env to switch to mainnet)."
     )
-    print("Ensure you are using testnet accounts and funds.")
+    if not IS_MAINNET:
+        print("Ensure you are using testnet accounts and funds.")
+    else:
+        print("WARNING: live money will be at risk on every order. Review .env carefully.")
 
     address = os.getenv("WALLET_ADDRESS")
     print("Running with account address:", address)
 
     # ---------- ORDERLY SETUP ----------
 
-    # PRIVATE_KEY — EVM-ключ (0x...), который использует Orderly
+    # PRIVATE_KEY — EVM key (0x...) used for Orderly EIP-712 onboarding signing.
     account: Account = Account.from_key(os.getenv("PRIVATE_KEY"))
 
     if IS_MAINNET:
@@ -285,7 +309,7 @@ if __name__ == "__main__":
     config = Config(base_url=orderly_base_url, chain_id=orderly_chain_id)
     client = Client(config, account)
 
-    # Ed25519-ключ Orderly (base58) — выбираем из переменной для текущей сети
+    # Orderly Ed25519 key (base58) — pulled from the env var that matches the active network.
     key_b58 = os.getenv(orderly_secret_env)
     if not key_b58:
         raise RuntimeError(f"Missing {orderly_secret_env} in environment")
@@ -310,7 +334,7 @@ if __name__ == "__main__":
         clear_screen()
         print_ascii_art()
 
-        # доступные DEX
+        # Available DEXes
         dex_options = [
             "orderly",
             "hyperliquid",
@@ -331,7 +355,7 @@ if __name__ == "__main__":
         if choice == 1:
             print("\n")
 
-            # Orderly: аккуратно обрабатываем случай пустого списка
+            # Orderly: defensively handle the empty-holdings case
             try:
                 holdings = client.account.get_client_holding()
             except Exception:
@@ -344,7 +368,7 @@ if __name__ == "__main__":
 
             print_available_USDC_per_DEX("Orderly balance", orderly_amount)
 
-            # Hyperliquid: берём withdrawable, если поле есть
+            # Hyperliquid: take the withdrawable balance when the field is present
             try:
                 user_state = hl_info.user_state(hl_address)
                 hyperliquid_amount = float(user_state.get("withdrawable", 0.0))

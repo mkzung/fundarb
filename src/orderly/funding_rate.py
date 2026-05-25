@@ -64,7 +64,7 @@ class OrderlyFundingRates:
             if rate is None:
                 continue
 
-            # underlying типа "ETH", "BTC", "SOL" и т.п.
+            # underlying ticker (e.g. "ETH", "BTC", "SOL").
             result[underlying] = rate
 
         return result

@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
+> **EXPERIMENTAL — DO NOT USE WITH REAL FUNDS.** This repo is a personal sandbox for funding-rate arbitrage research. Multiple code paths are stubs or have known bugs. Use only on testnet, only as a reference for the techniques, and audit every line before any live use.
+
 Async client + interactive CLI that compares funding rates across major decentralised perpetual venues, surfaces basis-trade opportunities, and executes the delta-neutral leg on the user's signature key. Used for live signal generation and execution on personal capital — not a hosted service.
 
 > **Disclaimer.** This is a personal research tool. Crypto perpetual trading is risky; funding rates change every 1–8h; venue uptime and oracle pricing are not guaranteed. Use at your own risk. No financial advice. The maintainer is not responsible for losses, liquidations, or venue-specific issues.
@@ -104,4 +106,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Author
 
-Max Gorbuk · [github.com/mkzung](https://github.com/mkzung) · Researcher at Stanford GSB Venture Capital Initiative · Founder, MedAI.
+Max Gorbuk · [github.com/mkzung](https://github.com/mkzung) · Researcher at Stanford GSB Venture Capital Initiative.

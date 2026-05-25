@@ -9,7 +9,19 @@ from hyperliquid.exchange import Exchange
 from hyperliquid.info import Info
 from hyperliquid.utils import constants
 
+# Network mode is read at import time from env via the shared config module so
+# library code doesn't depend on ``main``.
+try:
+    from network_config import IS_MAINNET  # when src/ is on sys.path (matches main.py)
+except ImportError:  # pragma: no cover - fallback for direct execution
+    IS_MAINNET = int(os.getenv("RUN_MAINNET", "0")) == 1
+
 load_dotenv()
+
+
+def _hyperliq_api_url() -> str:
+    """Return the correct Hyperliquid REST base URL for the active network."""
+    return constants.MAINNET_API_URL if IS_MAINNET else constants.TESTNET_API_URL
 
 
 def hyperliquid_setup(base_url=None, skip_ws=False):
@@ -41,8 +53,8 @@ def get_meta_data():
     Hyperliquid doesn't have this API call in their SDK
     """
 
-    # API endpoint
-    url = constants.TESTNET_API_URL + "/info"
+    # API endpoint — respects current network mode (RUN_MAINNET env var).
+    url = _hyperliq_api_url() + "/info"
 
     # Headers required for the request
     headers = {"Content-Type": "application/json"}
